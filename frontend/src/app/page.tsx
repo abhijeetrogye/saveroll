@@ -262,6 +262,7 @@ export default function Home() {
               </motion.div>
             ) : null}
           </AnimatePresence>
+        </MorphCard>
         </main>
         <Footer />
       </div>
