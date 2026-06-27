@@ -1,0 +1,25 @@
+# Ignore local virtual environment
+venv/
+.venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Local environment secrets — NEVER bake into the image
+.env
+.env.*
+
+# Git metadata
+.git/
+.gitignore
+
+# Editor / OS
+.DS_Store
+*.swp
+*.swo
+
+# Dev artifacts
+*.log
