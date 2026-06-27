@@ -16,7 +16,7 @@ import { MediaInfo, MediaFormat, CarouselItem, ApiError } from "@/types";
 import { AnimatePresence, motion } from "framer-motion";
 
 // Resolved once at module load — no re-computation on every render.
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
 
 export default function Home() {
   const [currentUrl, setCurrentUrl] = useState("");
