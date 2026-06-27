@@ -190,7 +190,8 @@ export default function Home() {
   return (
     <>
       <SplashScreen />
-      <main className="flex-1 flex flex-col items-center justify-center p-4 min-h-[100dvh] w-full max-w-7xl mx-auto relative z-10">
+      <div className="flex-1 flex flex-col w-full max-w-7xl mx-auto relative z-10">
+        <main className="flex-1 flex flex-col items-center justify-center p-4">
 
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -261,9 +262,9 @@ export default function Home() {
               </motion.div>
             ) : null}
           </AnimatePresence>
-        </MorphCard>
+        </main>
         <Footer />
-      </main>
+      </div>
     </>
   );
 }
