@@ -191,21 +191,21 @@ export default function Home() {
     <>
       <SplashScreen />
       <div className="min-h-[100dvh] flex flex-col w-full max-w-7xl mx-auto relative z-10">
-        <main className="flex-1 flex flex-col items-center justify-center px-4 py-6 sm:py-8">
+        <main className="flex-1 flex flex-col items-center px-4 pt-6 sm:pt-10 pb-6">
 
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="mb-4 sm:mb-8"
+          className="mb-6 sm:mb-10"
         >
           <Image
             src="/logo.png"
             alt="Saveroll logo"
-            width={400}
-            height={96}
+            width={500}
+            height={120}
             priority
-            className="object-contain w-auto h-16 sm:h-24"
+            className="object-contain w-auto h-20 sm:h-28"
           />
         </motion.div>
 
