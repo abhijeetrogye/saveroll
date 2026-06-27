@@ -190,14 +190,14 @@ export default function Home() {
   return (
     <>
       <SplashScreen />
-      <div className="flex-1 flex flex-col w-full max-w-7xl mx-auto relative z-10">
-        <main className="flex-1 flex flex-col items-center justify-center p-4">
+      <div className="min-h-[100dvh] flex flex-col w-full max-w-7xl mx-auto relative z-10">
+        <main className="flex-1 flex flex-col items-center justify-center px-4 py-6 sm:py-8">
 
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="mb-8"
+          className="mb-4 sm:mb-8"
         >
           <Image
             src="/logo.png"
@@ -205,7 +205,7 @@ export default function Home() {
             width={400}
             height={96}
             priority
-            className="object-contain w-auto h-24"
+            className="object-contain w-auto h-16 sm:h-24"
           />
         </motion.div>
 

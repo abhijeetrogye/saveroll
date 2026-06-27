@@ -1,6 +1,6 @@
 export default function Footer() {
   return (
-    <footer className="w-full text-center text-sm text-[var(--text-secondary)] mt-auto p-6 space-y-3">
+    <footer className="w-full text-center text-xs sm:text-sm text-[var(--text-secondary)] mt-auto px-4 py-3 sm:p-6 space-y-2 sm:space-y-3">
       <p>For personal use with content you have the rights to download.</p>
 
       <div className="space-y-2">
