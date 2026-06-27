@@ -7,4 +7,4 @@ services:
     healthCheckPath: /health
     envVars:
       - key: ALLOWED_ORIGINS
-        value: https://your-frontend.netlify.app
+        value: https://saveroll.netlify.app
