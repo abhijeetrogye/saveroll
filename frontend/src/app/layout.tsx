@@ -60,7 +60,7 @@ export const metadata: Metadata = {
     siteName: SITE_NAME,
     images: [
       {
-        url: "/favicon.png",
+        url: "/logo.png",
         width: 512,
         height: 512,
         alt: "Saveroll — Video Downloader",
@@ -73,14 +73,10 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: SITE_TITLE,
     description: SITE_DESCRIPTION,
-    images: ["/favicon.png"],
+    images: ["/logo.png"],
     creator: "@abhijeetrogye",
   },
-  icons: {
-    icon: [{ url: "/favicon.png", type: "image/png" }],
-    apple: "/favicon.png",
-    shortcut: "/favicon.png",
-  },
+
   robots: {
     index: true,
     follow: true,
