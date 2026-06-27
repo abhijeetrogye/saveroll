@@ -11,6 +11,7 @@ class DownloadRequest(BaseModel):
     format_id: str
     format_type: str
     carousel_index: int = 0  # 0 = top-level (non-carousel); 1-based for carousel items
+    download_url: str = ""   # Direct download URL from RapidAPI
 
 
 class FormatOption(BaseModel):
@@ -23,6 +24,7 @@ class FormatOption(BaseModel):
     filesize: Optional[int] = 0
     filesize_is_estimate: Optional[bool] = False
     note: Optional[str] = ""
+    download_url: Optional[str] = None
 
 
 # Alias so routes.py can also import as MediaFormat

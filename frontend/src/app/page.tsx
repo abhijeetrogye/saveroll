@@ -112,8 +112,9 @@ export default function Home() {
         body: JSON.stringify({
           url: currentUrl,
           format_id: selectedFormat.format_id,
-          format_type: selectedFormat.type,
+          format_type: selectedFormat.ext,
           carousel_index: isCarousel ? selectedCarouselIndex : 0,
+          download_url: selectedFormat.download_url || "",
         }),
       });
 

@@ -8,6 +8,7 @@ export type MediaFormat = {
   filesize: number;
   filesize_is_estimate: boolean;
   note: string;
+  download_url?: string;
 };
 
 /** One slide in a multi-item carousel (e.g. an Instagram album post). */
@@ -23,7 +24,7 @@ export type MediaInfo = {
   thumbnail?: string | null;
   duration?: number | null;
   uploader?: string | null;
-  source: "youtube" | "instagram" | "other";
+  source: "youtube" | "instagram" | "tiktok" | "other";
   media_type: "video" | "image" | "carousel";
   formats: MediaFormat[];         // Empty when carousel_items is populated
   carousel_items?: CarouselItem[];
