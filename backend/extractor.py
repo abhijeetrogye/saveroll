@@ -31,7 +31,7 @@ class MediaExtractionError(Exception):
 
 class PrivateContentError(MediaExtractionError):
     """Content exists but requires authentication / is from a private account."""
-    http_status: int = 403
+    http_status: int = 400
 
 
 class ContentNotFoundError(MediaExtractionError):
