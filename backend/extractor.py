@@ -173,9 +173,6 @@ def _build_formats_from_medias(medias: list) -> Tuple[List[FormatOption], str]:
 
         filesize = m.get("data_size") or 0
         filesize_estimated = False
-        if not filesize and download_url:
-            filesize = _get_filesize_from_head(download_url)
-            filesize_estimated = filesize > 0
 
         formats.append(
             FormatOption(

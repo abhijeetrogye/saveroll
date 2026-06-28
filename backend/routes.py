@@ -204,7 +204,7 @@ def download_zip(payload: BatchDownloadRequest, request: Request):
     if not zip_bytes or len(zip_bytes) <= 22:  # Empty ZIP is ~22 bytes
         raise HTTPException(
             status_code=400,
-            detail="None of the files could be downloaded. The server might be blocked by the provider.",
+            detail="Batch downloading is blocked by this provider. Please download the files one-by-one to use the Direct Download links.",
         )
 
     return StreamingResponse(
