@@ -131,7 +131,7 @@ def download(payload: DownloadRequest, request: Request):
             except http_requests.RequestException:
                 raise HTTPException(
                     status_code=400,
-                    detail="The download failed even after refreshing the link. The content may be temporarily unavailable.",
+                    detail="The server was blocked from downloading this file. Please try the Direct Download Link below.",
                 )
         except MediaExtractionError:
             raise HTTPException(
@@ -143,7 +143,7 @@ def download(payload: DownloadRequest, request: Request):
         except Exception:
             raise HTTPException(
                 status_code=400,
-                detail="The download failed. The content may have changed or is temporarily unavailable. Please try again.",
+                detail="The download failed because the server was blocked. Please try the Direct Download Link below.",
             )
 
     content_type = upstream.headers.get("Content-Type", "application/octet-stream")
@@ -204,7 +204,7 @@ def download_zip(payload: BatchDownloadRequest, request: Request):
     if not zip_bytes or len(zip_bytes) <= 22:  # Empty ZIP is ~22 bytes
         raise HTTPException(
             status_code=400,
-            detail="None of the files could be downloaded. The links may have expired — please re-paste the URL.",
+            detail="None of the files could be downloaded. The server might be blocked by the provider.",
         )
 
     return StreamingResponse(

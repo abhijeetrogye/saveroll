@@ -25,6 +25,7 @@ export default function Home() {
   const [selectedFormat, setSelectedFormat] = useState<MediaFormat | null>(null);
   const [selectedFormats, setSelectedFormats] = useState<MediaFormat[]>([]);
   const [selectedCarouselIndex, setSelectedCarouselIndex] = useState<number>(1); // 1-based
+  const [selectedCarouselIndices, setSelectedCarouselIndices] = useState<number[]>([]);
   const [error, setError] = useState<ApiError | null>(null);
   const [downloadStatus, setDownloadStatus] = useState<"idle" | "downloading" | "done">("idle");
   const [downloadProgress, setDownloadProgress] = useState(0);
@@ -57,6 +58,7 @@ export default function Home() {
     setSelectedFormat(null);
     setSelectedFormats([]);
     setSelectedCarouselIndex(1);
+    setSelectedCarouselIndices([]);
     setDownloadStatus("idle");
     setDownloadProgress(0);
 
@@ -102,6 +104,35 @@ export default function Home() {
     setDownloadStatus("idle");
   };
 
+  const handleToggleSelect = (index: number) => {
+    setSelectedCarouselIndices(prev => 
+      prev.includes(index) ? prev.filter(i => i !== index) : [...prev, index]
+    );
+  };
+
+  const handleSelectAll = () => {
+    if (mediaInfo?.carousel_items) {
+      setSelectedCarouselIndices(mediaInfo.carousel_items.map(c => c.index));
+    }
+  };
+
+  const handleClearSelection = () => {
+    setSelectedCarouselIndices([]);
+  };
+
+  const getFormatsToDownload = (): MediaFormat[] => {
+    const isCarousel = mediaInfo?.media_type === "carousel";
+    if (isCarousel && selectedCarouselIndices.length > 0) {
+      return selectedCarouselIndices
+        .map((idx) => {
+          const item = mediaInfo?.carousel_items?.find((c) => c.index === idx);
+          return item ? pickDefaultFormat(item.formats) : null;
+        })
+        .filter(Boolean) as MediaFormat[];
+    }
+    return selectedFormats.length > 0 ? selectedFormats : (selectedFormat ? [selectedFormat] : []);
+  };
+
   /** Download a single file via the proxy endpoint. */
   const downloadSingleFile = async (format: MediaFormat): Promise<boolean> => {
     const isCarousel = mediaInfo?.media_type === "carousel";
@@ -122,7 +153,7 @@ export default function Home() {
       const errorData = await res
         .json()
         .catch(() => ({ detail: "Download failed." }));
-      setError(errorData);
+      setError({ ...errorData, fallbackUrl: format.download_url });
       return false;
     }
 
@@ -179,7 +210,7 @@ export default function Home() {
 
   /** Download selected formats (sequentially for individual files). */
   const handleDownload = async () => {
-    const formatsToDownload = selectedFormats.length > 0 ? selectedFormats : (selectedFormat ? [selectedFormat] : []);
+    const formatsToDownload = getFormatsToDownload();
     if (!currentUrl || formatsToDownload.length === 0) return;
 
     setDownloadStatus("downloading");
@@ -207,7 +238,8 @@ export default function Home() {
 
   /** Download all selected formats as a single ZIP archive. */
   const handleZipDownload = async () => {
-    if (!currentUrl || selectedFormats.length === 0) return;
+    const formatsToDownload = getFormatsToDownload();
+    if (!currentUrl || formatsToDownload.length === 0) return;
 
     setDownloadStatus("downloading");
     setDownloadProgress(0);
@@ -221,7 +253,7 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           url: currentUrl,
-          items: selectedFormats.map((f, i) => ({
+          items: formatsToDownload.map((f, i) => ({
             download_url: f.download_url || "",
             filename: `${titleSlug}_${f.note || f.format_id}`.replace(/[^a-z0-9_]/gi, "_"),
             ext: f.ext,
@@ -328,26 +360,33 @@ export default function Home() {
                     items={mediaInfo.carousel_items}
                     selectedIndex={selectedCarouselIndex}
                     onSelect={handleCarouselSelect}
+                    selectedIndices={selectedCarouselIndices}
+                    onToggleSelect={handleToggleSelect}
+                    onSelectAll={handleSelectAll}
+                    onClearSelection={handleClearSelection}
                   />
                 )}
 
-                <FormatPicker
-                  formats={activeFormats}
-                  selectedFormat={selectedFormat}
-                  selectedFormats={selectedFormats}
-                  onSelect={setSelectedFormat}
-                  onSelectMulti={setSelectedFormats}
-                />
+                {/* Hide format picker if they are doing a batch selection of the carousel */}
+                {!(isCarousel && selectedCarouselIndices.length > 0) && (
+                  <FormatPicker
+                    formats={activeFormats}
+                    selectedFormat={selectedFormat}
+                    selectedFormats={selectedFormats}
+                    onSelect={setSelectedFormat}
+                    onSelectMulti={setSelectedFormats}
+                  />
+                )}
 
                 {error && <ErrorBanner error={error} />}
 
                 <DownloadButton
                   onClick={handleDownload}
-                  onZipDownload={selectedFormats.length > 1 ? handleZipDownload : undefined}
+                  onZipDownload={getFormatsToDownload().length > 1 ? handleZipDownload : undefined}
                   status={downloadStatus}
                   progress={downloadProgress}
-                  disabled={selectedFormats.length === 0 && !selectedFormat}
-                  selectedCount={selectedFormats.length}
+                  disabled={getFormatsToDownload().length === 0}
+                  selectedCount={getFormatsToDownload().length}
                 />
               </motion.div>
             ) : error ? (

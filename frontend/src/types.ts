@@ -32,4 +32,5 @@ export type MediaInfo = {
 
 export type ApiError = {
   detail: string;
+  fallbackUrl?: string;
 };
