@@ -1,23 +1,39 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Download, Check, Loader2 } from "lucide-react";
+import { Download, Check, Loader2, Archive } from "lucide-react";
 
 interface DownloadButtonProps {
   onClick: () => void;
+  onZipDownload?: () => void;
   status: "idle" | "downloading" | "done";
   progress: number;
   disabled?: boolean;
+  selectedCount: number;
 }
 
-export default function DownloadButton({ onClick, status, progress, disabled }: DownloadButtonProps) {
+export default function DownloadButton({
+  onClick,
+  onZipDownload,
+  status,
+  progress,
+  disabled,
+  selectedCount,
+}: DownloadButtonProps) {
+  const showZipOption = selectedCount > 1 && onZipDownload;
+  const label =
+    selectedCount > 1
+      ? `Download ${selectedCount} files`
+      : "Download";
+
   return (
     <div className="px-6 pb-6">
+      {/* Primary download button */}
       <motion.button
         whileTap={{ scale: disabled || status !== "idle" ? 1 : 0.97 }}
         onClick={onClick}
         disabled={disabled || status !== "idle"}
-        className="relative w-full overflow-hidden rounded-[var(--radius-inner)] bg-[var(--accent)] hover:bg-[var(--accent-pressed)] transition-colors text-white font-medium py-3 px-4 flex items-center justify-center gap-2 disabled:opacity-80 shadow-lg shadow-[var(--accent)]/20"
+        className="relative w-full overflow-hidden rounded-[var(--radius-inner)] btn-download text-white font-medium py-3 px-4 flex items-center justify-center gap-2 shadow-lg shadow-purple-500/20"
       >
         {status === "downloading" && (
           <div
@@ -30,7 +46,7 @@ export default function DownloadButton({ onClick, status, progress, disabled }: 
           {status === "idle" && (
             <>
               <Download className="w-5 h-5" />
-              <span>Download</span>
+              <span>{label}</span>
             </>
           )}
           {status === "downloading" && (
@@ -47,6 +63,22 @@ export default function DownloadButton({ onClick, status, progress, disabled }: 
           )}
         </div>
       </motion.button>
+
+      {/* ZIP download option — visible when multiple formats are selected */}
+      {showZipOption && status === "idle" && (
+        <motion.button
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: "auto" }}
+          exit={{ opacity: 0, height: 0 }}
+          whileTap={{ scale: 0.97 }}
+          onClick={onZipDownload}
+          disabled={disabled}
+          className="w-full mt-2 rounded-[var(--radius-inner)] btn-download-secondary text-white/90 font-medium py-2.5 px-4 flex items-center justify-center gap-2"
+        >
+          <Archive className="w-4 h-4" />
+          <span>Download as ZIP</span>
+        </motion.button>
+      )}
     </div>
   );
 }

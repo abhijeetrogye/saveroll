@@ -14,6 +14,17 @@ class DownloadRequest(BaseModel):
     download_url: str = ""   # Direct download URL from RapidAPI
 
 
+class BatchDownloadItem(BaseModel):
+    download_url: str
+    filename: str = "media"
+    ext: str = "mp4"
+
+
+class BatchDownloadRequest(BaseModel):
+    url: str                          # Original media URL (for re-fetch fallback)
+    items: List[BatchDownloadItem]
+
+
 class FormatOption(BaseModel):
     format_id: str
     ext: str

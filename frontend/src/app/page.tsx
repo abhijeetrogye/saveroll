@@ -23,6 +23,7 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [mediaInfo, setMediaInfo] = useState<MediaInfo | null>(null);
   const [selectedFormat, setSelectedFormat] = useState<MediaFormat | null>(null);
+  const [selectedFormats, setSelectedFormats] = useState<MediaFormat[]>([]);
   const [selectedCarouselIndex, setSelectedCarouselIndex] = useState<number>(1); // 1-based
   const [error, setError] = useState<ApiError | null>(null);
   const [downloadStatus, setDownloadStatus] = useState<"idle" | "downloading" | "done">("idle");
@@ -54,6 +55,7 @@ export default function Home() {
     setError(null);
     setMediaInfo(null);
     setSelectedFormat(null);
+    setSelectedFormats([]);
     setSelectedCarouselIndex(1);
     setDownloadStatus("idle");
     setDownloadProgress(0);
@@ -75,7 +77,9 @@ export default function Home() {
         setMediaInfo(data);
         // Auto-select the first format of the first carousel item (or top-level).
         const formats = getActiveFormats(data, 1);
-        setSelectedFormat(pickDefaultFormat(formats));
+        const defaultFmt = pickDefaultFormat(formats);
+        setSelectedFormat(defaultFmt);
+        setSelectedFormats(defaultFmt ? [defaultFmt] : []);
       }
     } catch (e) {
       console.error("[Saveroll] fetchInfo error:", e);
@@ -89,39 +93,146 @@ export default function Home() {
     setSelectedCarouselIndex(index);
     if (mediaInfo) {
       const formats = getActiveFormats(mediaInfo, index);
-      setSelectedFormat(pickDefaultFormat(formats));
+      const defaultFmt = pickDefaultFormat(formats);
+      setSelectedFormat(defaultFmt);
+      setSelectedFormats(defaultFmt ? [defaultFmt] : []);
     }
     // Clear any previous download errors when switching items
     setError(null);
     setDownloadStatus("idle");
   };
 
+  /** Download a single file via the proxy endpoint. */
+  const downloadSingleFile = async (format: MediaFormat): Promise<boolean> => {
+    const isCarousel = mediaInfo?.media_type === "carousel";
+
+    const res = await fetch(`${API_BASE}/api/download`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        url: currentUrl,
+        format_id: format.format_id,
+        format_type: format.ext,
+        carousel_index: isCarousel ? selectedCarouselIndex : 0,
+        download_url: format.download_url || "",
+      }),
+    });
+
+    if (!res.ok) {
+      const errorData = await res
+        .json()
+        .catch(() => ({ detail: "Download failed." }));
+      setError(errorData);
+      return false;
+    }
+
+    if (!res.body) {
+      throw new Error("No response body received from server.");
+    }
+
+    const contentLength = res.headers.get("Content-Length");
+    const total = contentLength ? parseInt(contentLength, 10) : 0;
+
+    let loaded = 0;
+    const reader = res.body.getReader();
+    const chunks: Uint8Array[] = [];
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value) {
+        chunks.push(value);
+        loaded += value.length;
+        if (total > 0) {
+          setDownloadProgress((loaded / total) * 100);
+        }
+      }
+    }
+
+    const blob = new Blob(chunks as BlobPart[]);
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+
+    const disposition = res.headers.get("Content-Disposition");
+    let filename = "download";
+    if (disposition && disposition.includes("filename=")) {
+      const match = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+      if (match?.[1]) {
+        filename = match[1].replace(/['"]/g, "");
+      }
+    } else {
+      const suffix = isCarousel ? `_item${selectedCarouselIndex}` : "";
+      filename = `${
+        mediaInfo?.title?.replace(/[^a-z0-9]/gi, "_").toLowerCase() || "media"
+      }${suffix}.${format.ext}`;
+    }
+
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(blobUrl);
+
+    return true;
+  };
+
+  /** Download selected formats (sequentially for individual files). */
   const handleDownload = async () => {
-    if (!currentUrl || !selectedFormat) return;
+    const formatsToDownload = selectedFormats.length > 0 ? selectedFormats : (selectedFormat ? [selectedFormat] : []);
+    if (!currentUrl || formatsToDownload.length === 0) return;
 
     setDownloadStatus("downloading");
     setDownloadProgress(0);
     setError(null);
 
-    const isCarousel = mediaInfo?.media_type === "carousel";
+    try {
+      for (let i = 0; i < formatsToDownload.length; i++) {
+        setDownloadProgress((i / formatsToDownload.length) * 100);
+        const success = await downloadSingleFile(formatsToDownload[i]);
+        if (!success) {
+          setDownloadStatus("idle");
+          return;
+        }
+      }
+
+      setDownloadStatus("done");
+      setTimeout(() => setDownloadStatus("idle"), 3000);
+    } catch (e) {
+      console.error("[Saveroll] handleDownload error:", e);
+      setError({ detail: "An error occurred during download." });
+      setDownloadStatus("idle");
+    }
+  };
+
+  /** Download all selected formats as a single ZIP archive. */
+  const handleZipDownload = async () => {
+    if (!currentUrl || selectedFormats.length === 0) return;
+
+    setDownloadStatus("downloading");
+    setDownloadProgress(0);
+    setError(null);
+
+    const titleSlug = mediaInfo?.title?.replace(/[^a-z0-9]/gi, "_").toLowerCase() || "media";
 
     try {
-      const res = await fetch(`${API_BASE}/api/download`, {
+      const res = await fetch(`${API_BASE}/api/download-zip`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           url: currentUrl,
-          format_id: selectedFormat.format_id,
-          format_type: selectedFormat.ext,
-          carousel_index: isCarousel ? selectedCarouselIndex : 0,
-          download_url: selectedFormat.download_url || "",
+          items: selectedFormats.map((f, i) => ({
+            download_url: f.download_url || "",
+            filename: `${titleSlug}_${f.note || f.format_id}`.replace(/[^a-z0-9_]/gi, "_"),
+            ext: f.ext,
+          })),
         }),
       });
 
       if (!res.ok) {
         const errorData = await res
           .json()
-          .catch(() => ({ detail: "Download failed." }));
+          .catch(() => ({ detail: "ZIP download failed." }));
         setError(errorData);
         setDownloadStatus("idle");
         return;
@@ -150,26 +261,11 @@ export default function Home() {
         }
       }
 
-      const blob = new Blob(chunks as BlobPart[]);
+      const blob = new Blob(chunks as BlobPart[], { type: "application/zip" });
       const blobUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = blobUrl;
-
-      const disposition = res.headers.get("Content-Disposition");
-      let filename = "download";
-      if (disposition && disposition.includes("filename=")) {
-        const match = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
-        if (match?.[1]) {
-          filename = match[1].replace(/['"]/g, "");
-        }
-      } else {
-        const suffix = isCarousel ? `_item${selectedCarouselIndex}` : "";
-        filename = `${
-          mediaInfo?.title?.replace(/[^a-z0-9]/gi, "_").toLowerCase() || "media"
-        }${suffix}.${selectedFormat.ext}`;
-      }
-
-      a.download = filename;
+      a.download = "saveroll_downloads.zip";
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -178,8 +274,8 @@ export default function Home() {
       setDownloadStatus("done");
       setTimeout(() => setDownloadStatus("idle"), 3000);
     } catch (e) {
-      console.error("[Saveroll] handleDownload error:", e);
-      setError({ detail: "An error occurred during download." });
+      console.error("[Saveroll] handleZipDownload error:", e);
+      setError({ detail: "An error occurred during ZIP download." });
       setDownloadStatus("idle");
     }
   };
@@ -238,16 +334,20 @@ export default function Home() {
                 <FormatPicker
                   formats={activeFormats}
                   selectedFormat={selectedFormat}
+                  selectedFormats={selectedFormats}
                   onSelect={setSelectedFormat}
+                  onSelectMulti={setSelectedFormats}
                 />
 
                 {error && <ErrorBanner error={error} />}
 
                 <DownloadButton
                   onClick={handleDownload}
+                  onZipDownload={selectedFormats.length > 1 ? handleZipDownload : undefined}
                   status={downloadStatus}
                   progress={downloadProgress}
-                  disabled={!selectedFormat}
+                  disabled={selectedFormats.length === 0 && !selectedFormat}
+                  selectedCount={selectedFormats.length}
                 />
               </motion.div>
             ) : error ? (

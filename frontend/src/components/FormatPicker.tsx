@@ -3,11 +3,14 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { MediaFormat } from "@/types";
+import { CheckSquare, Square } from "lucide-react";
 
 interface FormatPickerProps {
   formats: MediaFormat[];
   selectedFormat: MediaFormat | null;
+  selectedFormats: MediaFormat[];
   onSelect: (format: MediaFormat) => void;
+  onSelectMulti: (formats: MediaFormat[]) => void;
 }
 
 function getDefaultTab(formats: MediaFormat[]): "video" | "audio" | "image" {
@@ -42,7 +45,7 @@ function getFriendlyAudioName(abr: number | null | undefined, ext: string): stri
   return "Basic Quality";
 }
 
-export default function FormatPicker({ formats, selectedFormat, onSelect }: FormatPickerProps) {
+export default function FormatPicker({ formats, selectedFormat, selectedFormats, onSelect, onSelectMulti }: FormatPickerProps) {
   const videoFormats = formats.filter((f) => f.type.startsWith("video"));
   const audioFormats = formats.filter((f) => f.type === "audio");
   const imageFormats = formats.filter((f) => f.type === "image");
@@ -66,6 +69,36 @@ export default function FormatPicker({ formats, selectedFormat, onSelect }: Form
     const sizes = ["B", "KB", "MB", "GB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
+  };
+
+  const isFormatSelected = (format: MediaFormat) =>
+    selectedFormats.some((f) => f.format_id === format.format_id);
+
+  const allActiveSelected =
+    activeFormats.length > 0 && activeFormats.every((f) => isFormatSelected(f));
+
+  const handleToggleFormat = (format: MediaFormat) => {
+    if (isFormatSelected(format)) {
+      onSelectMulti(selectedFormats.filter((f) => f.format_id !== format.format_id));
+    } else {
+      onSelectMulti([...selectedFormats, format]);
+    }
+    // Also update single selection for backward compatibility
+    onSelect(format);
+  };
+
+  const handleSelectAll = () => {
+    if (allActiveSelected) {
+      // Deselect all active formats
+      const activeIds = new Set(activeFormats.map((f) => f.format_id));
+      onSelectMulti(selectedFormats.filter((f) => !activeIds.has(f.format_id)));
+    } else {
+      // Select all active formats (merge with existing selections from other tabs)
+      const existing = selectedFormats.filter(
+        (f) => !activeFormats.some((af) => af.format_id === f.format_id)
+      );
+      onSelectMulti([...existing, ...activeFormats]);
+    }
   };
 
   return (
@@ -127,35 +160,67 @@ export default function FormatPicker({ formats, selectedFormat, onSelect }: Form
         )}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
-        {activeFormats.map((format) => (
-          <button
-            key={format.format_id}
-            onClick={() => onSelect(format)}
-            className={`flex flex-col text-left p-3 rounded-[var(--radius-inner)] transition-all ${
-              selectedFormat?.format_id === format.format_id
-                ? "glass-btn-active"
-                : "glass-btn"
-            }`}
-          >
-            <div className="flex justify-between items-center w-full">
-              <span className="font-medium text-sm text-[var(--text-primary)]">
-                {format.type.startsWith("video") && format.resolution
-                  ? getFriendlyResolutionName(format.resolution)
-                  : format.type === "audio"
-                  ? getFriendlyAudioName(format.abr, format.ext)
-                  : format.ext.toUpperCase()}
-              </span>
-              <span className="text-xs text-[var(--text-secondary)]">
-                {format.filesize_is_estimate ? "~" : ""}
-                {formatBytes(format.filesize)}
-              </span>
-            </div>
-            <span className="text-xs text-[var(--text-secondary)] mt-1 truncate w-full" title={format.note}>
-              {format.note}
+      {/* Select All / Deselect All toggle */}
+      {activeFormats.length > 1 && (
+        <button
+          onClick={handleSelectAll}
+          className="flex items-center gap-2 mb-3 text-xs font-medium text-[var(--text-secondary)] hover:text-white transition-colors group"
+        >
+          {allActiveSelected ? (
+            <CheckSquare className="w-4 h-4 text-[#A855F7] group-hover:text-[#B865FF]" />
+          ) : (
+            <Square className="w-4 h-4 group-hover:text-white/60" />
+          )}
+          {allActiveSelected ? "Deselect All" : "Select All"}
+          {selectedFormats.length > 0 && (
+            <span className="ml-1 px-1.5 py-0.5 rounded-full bg-white/10 text-[10px]">
+              {selectedFormats.length} selected
             </span>
-          </button>
-        ))}
+          )}
+        </button>
+      )}
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
+        {activeFormats.map((format) => {
+          const checked = isFormatSelected(format);
+          return (
+            <button
+              key={format.format_id}
+              onClick={() => handleToggleFormat(format)}
+              className={`flex items-center gap-3 text-left p-3 rounded-[var(--radius-inner)] transition-all ${
+                checked
+                  ? "glass-btn-active"
+                  : "glass-btn"
+              }`}
+            >
+              <input
+                type="checkbox"
+                className="format-checkbox"
+                checked={checked}
+                onChange={() => handleToggleFormat(format)}
+                onClick={(e) => e.stopPropagation()}
+              />
+              <div className="flex flex-col flex-1 min-w-0">
+                <div className="flex justify-between items-center w-full">
+                  <span className="font-medium text-sm text-[var(--text-primary)]">
+                    {format.type.startsWith("video") && format.resolution
+                      ? getFriendlyResolutionName(format.resolution)
+                      : format.type === "audio"
+                      ? getFriendlyAudioName(format.abr, format.ext)
+                      : format.ext.toUpperCase()}
+                  </span>
+                  <span className="text-xs text-[var(--text-secondary)]">
+                    {format.filesize_is_estimate ? "~" : ""}
+                    {formatBytes(format.filesize)}
+                  </span>
+                </div>
+                <span className="text-xs text-[var(--text-secondary)] mt-1 truncate w-full" title={format.note}>
+                  {format.note}
+                </span>
+              </div>
+            </button>
+          );
+        })}
       </div>
     </div>
   );

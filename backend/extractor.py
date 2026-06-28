@@ -10,7 +10,7 @@ from models import CarouselItem, FormatOption, MediaInfo
 # ---------------------------------------------------------------------------
 
 RAPIDAPI_URL = "https://social-download-all-in-one.p.rapidapi.com/v1/social/autolink"
-RAPIDAPI_KEY = os.getenv("RAPIDAPI_KEY", "")
+RAPIDAPI_KEYS = [k.strip() for k in os.getenv("RAPIDAPI_KEY", "").split(",") if k.strip()]
 RAPIDAPI_HOST = "social-download-all-in-one.p.rapidapi.com"
 
 
@@ -53,45 +53,76 @@ def detect_source(url: str) -> str:
     return "other"
 
 
+def _get_filesize_from_head(url: str) -> int:
+    """Attempt a HEAD request to get Content-Length. Returns 0 on failure."""
+    if not url:
+        return 0
+    try:
+        resp = requests.head(url, timeout=3, allow_redirects=True)
+        length = resp.headers.get("Content-Length")
+        return int(length) if length else 0
+    except Exception:
+        return 0
+
+
 def _call_rapidapi(url: str) -> dict:
     """Send the URL to RapidAPI and return the parsed JSON response."""
-    headers = {
-        "Content-Type": "application/json",
-        "x-rapidapi-host": RAPIDAPI_HOST,
-        "x-rapidapi-key": RAPIDAPI_KEY,
-    }
-
-    if not RAPIDAPI_KEY:
+    if not RAPIDAPI_KEYS:
         raise MediaExtractionError(
             "The server is missing its RAPIDAPI_KEY. Please contact the admin."
         )
 
-    try:
-        resp = requests.post(RAPIDAPI_URL, json={"url": url}, headers=headers, timeout=30)
-    except requests.RequestException as exc:
-        raise MediaExtractionError(
-            "We couldn't reach the download service. Please try again in a moment."
-        ) from exc
+    last_exc = None
+    for key in RAPIDAPI_KEYS:
+        headers = {
+            "Content-Type": "application/json",
+            "x-rapidapi-host": RAPIDAPI_HOST,
+            "x-rapidapi-key": key,
+        }
 
-    data = resp.json()
+        try:
+            resp = requests.post(RAPIDAPI_URL, json={"url": url}, headers=headers, timeout=30)
+            
+            # If rate limited or unauthorized by RapidAPI, try the next key
+            if resp.status_code in (401, 403, 429):
+                last_exc = MediaExtractionError("API key limit reached or unauthorized.")
+                continue
 
-    if data.get("error"):
-        msg = ""
-        if isinstance(data.get("message"), str):
-            msg = data["message"].lower()
-        elif isinstance(data.get("data"), dict):
-            msg = (data["data"].get("message") or "").lower()
+            data = resp.json()
 
-        if "private" in msg or "restricted" in msg or "cookie" in msg:
-            raise PrivateContentError(
-                "This content is private or requires a login. "
-                "Only public posts that are visible without logging in can be downloaded."
-            )
-        raise MediaExtractionError(
-            "We couldn't fetch that link. It may be private, region-locked, or temporarily unavailable."
-        )
+            if data.get("error"):
+                msg = ""
+                if isinstance(data.get("message"), str):
+                    msg = data["message"].lower()
+                elif isinstance(data.get("data"), dict):
+                    msg = (data["data"].get("message") or "").lower()
 
-    return data
+                # Check if the API provider itself returned a quota/limit error inside the payload
+                if "limit" in msg or "quota" in msg:
+                    last_exc = MediaExtractionError("API provider limit reached.")
+                    continue
+
+                if "private" in msg or "restricted" in msg or "cookie" in msg:
+                    raise PrivateContentError(
+                        "This content is private or requires a login. "
+                        "Only public posts that are visible without logging in can be downloaded."
+                    )
+                raise MediaExtractionError(
+                    "We couldn't fetch that link. It may be private, region-locked, or temporarily unavailable."
+                )
+
+            return data
+
+        except requests.RequestException as exc:
+            last_exc = exc
+            continue
+
+    if isinstance(last_exc, MediaExtractionError):
+        raise last_exc
+
+    raise MediaExtractionError(
+        "We couldn't reach the download service. Please try again in a moment."
+    ) from last_exc
 
 
 def _build_formats_from_medias(medias: list) -> Tuple[List[FormatOption], str]:
@@ -141,6 +172,10 @@ def _build_formats_from_medias(medias: list) -> Tuple[List[FormatOption], str]:
             continue
 
         filesize = m.get("data_size") or 0
+        filesize_estimated = False
+        if not filesize and download_url:
+            filesize = _get_filesize_from_head(download_url)
+            filesize_estimated = filesize > 0
 
         formats.append(
             FormatOption(
@@ -151,7 +186,7 @@ def _build_formats_from_medias(medias: list) -> Tuple[List[FormatOption], str]:
                 fps=None,
                 abr=None,
                 filesize=filesize,
-                filesize_is_estimate=False,
+                filesize_is_estimate=filesize_estimated,
                 note=label,
                 download_url=download_url,
             )
