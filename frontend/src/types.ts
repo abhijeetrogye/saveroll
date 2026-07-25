@@ -21,6 +21,7 @@ export type CarouselItem = {
 
 export type MediaInfo = {
   title: string;
+  description?: string | null;
   thumbnail?: string | null;
   duration?: number | null;
   uploader?: string | null;

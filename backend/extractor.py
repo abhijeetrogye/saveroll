@@ -1,4 +1,5 @@
 import os
+import concurrent.futures
 from typing import List, Tuple
 
 import requests
@@ -147,6 +148,14 @@ def _build_formats_from_medias(medias: list) -> Tuple[List[FormatOption], str]:
         resolution = f"{width}x{height}" if width and height else None
 
         if m_type == "video":
+            has_audio = True
+            if m.get("hasAudio") is False or m.get("has_audio") is False or m.get("audio") is False:
+                has_audio = False
+            if quality and isinstance(quality, str) and ("mute" in quality.lower() or "no audio" in quality.lower()):
+                has_audio = False
+            
+            fmt_type = "video" if has_audio else "video_only"
+
             # Build a readable label from quality + resolution
             if quality and "watermark" not in quality.lower():
                 label = quality
@@ -154,7 +163,6 @@ def _build_formats_from_medias(medias: list) -> Tuple[List[FormatOption], str]:
                 label = f"{height}p"
             else:
                 label = f"Video {i + 1}"
-            fmt_type = "video"
         elif m_type == "audio":
             label = quality if quality else "Audio"
             fmt_type = "audio"
@@ -189,6 +197,23 @@ def _build_formats_from_medias(medias: list) -> Tuple[List[FormatOption], str]:
             )
         )
 
+    # Fetch missing file sizes concurrently using HEAD requests
+    formats_to_fetch = [fmt for fmt in formats if (not fmt.filesize or fmt.filesize == 0) and fmt.download_url]
+    if formats_to_fetch:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+            future_to_fmt = {
+                executor.submit(_get_filesize_from_head, fmt.download_url): fmt 
+                for fmt in formats_to_fetch
+            }
+            for future in concurrent.futures.as_completed(future_to_fmt):
+                fmt = future_to_fmt[future]
+                try:
+                    size = future.result()
+                    if size > 0:
+                        fmt.filesize = size
+                except Exception:
+                    pass
+
     return formats, media_type
 
 
@@ -202,6 +227,7 @@ def extract_info(url: str) -> MediaInfo:
 
     source = data.get("source") or detect_source(url)
     title = data.get("title") or "Untitled"
+    description = data.get("description")
     thumbnail = data.get("thumbnail")
     uploader = data.get("author") or data.get("unique_id") or "Unknown"
     duration_ms = data.get("duration")
@@ -223,6 +249,7 @@ def extract_info(url: str) -> MediaInfo:
 
     return MediaInfo(
         title=title,
+        description=description,
         thumbnail=thumbnail,
         duration=duration,
         uploader=uploader,

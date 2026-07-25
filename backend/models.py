@@ -52,6 +52,7 @@ class CarouselItem(BaseModel):
 
 class MediaInfo(BaseModel):
     title: str
+    description: Optional[str] = None
     thumbnail: Optional[str] = None
     duration: Optional[float] = None
     uploader: Optional[str] = None

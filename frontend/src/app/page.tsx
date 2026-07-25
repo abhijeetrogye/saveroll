@@ -76,12 +76,9 @@ export default function Home() {
         setError(errorData);
       } else {
         const data: MediaInfo = await res.json();
-        setMediaInfo(data);
-        // Auto-select the first format of the first carousel item (or top-level).
-        const formats = getActiveFormats(data, 1);
-        const defaultFmt = pickDefaultFormat(formats);
-        setSelectedFormat(defaultFmt);
-        setSelectedFormats(defaultFmt ? [defaultFmt] : []);
+        // Don't auto-select a format; let the user choose
+        setSelectedFormat(null);
+        setSelectedFormats([]);
       }
     } catch (e) {
       console.error("[Saveroll] fetchInfo error:", e);
@@ -94,10 +91,8 @@ export default function Home() {
   const handleCarouselSelect = (index: number) => {
     setSelectedCarouselIndex(index);
     if (mediaInfo) {
-      const formats = getActiveFormats(mediaInfo, index);
-      const defaultFmt = pickDefaultFormat(formats);
-      setSelectedFormat(defaultFmt);
-      setSelectedFormats(defaultFmt ? [defaultFmt] : []);
+      setSelectedFormat(null);
+      setSelectedFormats([]);
     }
     // Clear any previous download errors when switching items
     setError(null);

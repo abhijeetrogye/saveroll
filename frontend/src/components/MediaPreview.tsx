@@ -1,8 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import { MediaInfo } from "@/types";
-import { Clock, Link2 } from "lucide-react";
+import { Clock, Link2, Copy, Check, Download } from "lucide-react";
 
 const InstagramIcon = ({ className }: { className?: string }) => (
   <svg
@@ -42,6 +43,33 @@ interface MediaPreviewProps {
 }
 
 export default function MediaPreview({ info }: MediaPreviewProps) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    const text = info.description || info.title;
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleDownloadThumbnail = async () => {
+    if (!info.thumbnail) return;
+    try {
+      const response = await fetch(info.thumbnail);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.style.display = "none";
+      a.href = url;
+      a.download = `thumbnail_${(info.title || "media").substring(0, 20).replace(/[^a-zA-Z0-9]/g, "_")}.jpg`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      window.open(info.thumbnail, "_blank");
+    }
+  };
+
   const formatDuration = (seconds: number | null | undefined): string => {
     if (!seconds || seconds <= 0 || info.media_type === "carousel") return "";
     const m = Math.floor(seconds / 60);
@@ -53,7 +81,7 @@ export default function MediaPreview({ info }: MediaPreviewProps) {
 
   return (
     <div className="flex flex-col sm:flex-row gap-4 p-6 pb-4">
-      <div className="relative w-full sm:w-32 aspect-video sm:aspect-square rounded-[var(--radius-inner)] overflow-hidden flex-shrink-0 bg-black/50">
+      <div className="relative w-full sm:w-32 aspect-video sm:aspect-square rounded-[var(--radius-inner)] overflow-hidden flex-shrink-0 bg-black/50 group">
         {info.thumbnail ? (
           <Image
             src={info.thumbnail}
@@ -68,6 +96,15 @@ export default function MediaPreview({ info }: MediaPreviewProps) {
             No preview
           </div>
         )}
+        {info.thumbnail && (
+          <button
+            onClick={handleDownloadThumbnail}
+            className="absolute top-2 left-2 sm:opacity-0 group-hover:opacity-100 transition-opacity bg-black/70 text-white p-1.5 rounded backdrop-blur-md hover:bg-black/90 z-10"
+            title="Download Thumbnail"
+          >
+            <Download className="w-4 h-4" />
+          </button>
+        )}
         {durationLabel && (
           <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-1.5 py-0.5 rounded flex items-center gap-1 backdrop-blur-md">
             <Clock className="w-3 h-3" />
@@ -75,10 +112,24 @@ export default function MediaPreview({ info }: MediaPreviewProps) {
           </div>
         )}
       </div>
-      <div className="flex flex-col justify-center flex-1 min-w-0">
-        <h2 className="text-lg font-medium text-[var(--text-primary)] truncate" title={info.title}>
-          {info.title}
-        </h2>
+      <div className="flex flex-col justify-center flex-1 min-w-0 py-1">
+        <div className="flex items-start justify-between gap-2">
+          <h2 className="text-lg font-medium text-[var(--text-primary)] line-clamp-2" title={info.title}>
+            {info.title}
+          </h2>
+          <button
+            onClick={handleCopy}
+            className="p-1.5 bg-white/5 hover:bg-white/10 rounded-md text-[var(--text-secondary)] hover:text-white transition-colors shrink-0"
+            title="Copy caption"
+          >
+            {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
+          </button>
+        </div>
+        {info.description && info.description !== info.title && (
+          <p className="text-sm text-[var(--text-secondary)] mt-1 line-clamp-2" title={info.description}>
+            {info.description}
+          </p>
+        )}
         <div className="flex items-center gap-2 text-sm text-[var(--text-secondary)] mt-2">
           {info.source === "youtube" ? (
             <YoutubeIcon className="w-4 h-4 text-[#ff0000]" />

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { MediaFormat } from "@/types";
-import { CheckSquare, Square } from "lucide-react";
+import { CheckSquare, Square, VolumeX } from "lucide-react";
 
 interface FormatPickerProps {
   formats: MediaFormat[];
@@ -202,12 +202,18 @@ export default function FormatPicker({ formats, selectedFormat, selectedFormats,
               />
               <div className="flex flex-col flex-1 min-w-0">
                 <div className="flex justify-between items-center w-full">
-                  <span className="font-medium text-sm text-[var(--text-primary)]">
+                  <span className="font-medium text-sm text-[var(--text-primary)] flex items-center gap-1.5">
                     {format.type.startsWith("video") && format.resolution
                       ? getFriendlyResolutionName(format.resolution)
                       : format.type === "audio"
                       ? getFriendlyAudioName(format.abr, format.ext)
                       : format.ext.toUpperCase()}
+                    {format.type === "video_only" && (
+                      <span className="flex items-center text-xs text-red-400 bg-red-400/10 px-1.5 py-0.5 rounded gap-1" title="No Audio">
+                        <VolumeX className="w-3 h-3" />
+                        Mute
+                      </span>
+                    )}
                   </span>
                   <span className="text-xs text-[var(--text-secondary)]">
                     {format.filesize_is_estimate ? "~" : ""}
