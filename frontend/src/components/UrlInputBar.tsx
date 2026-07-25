@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowRight, Link2 } from "lucide-react";
+import { ArrowRight, Link2, X } from "lucide-react";
 
 const YoutubeIcon = ({ className }: { className?: string }) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -57,6 +57,18 @@ export default function UrlInputBar({ onSubmit, isLoading }: UrlInputBarProps) {
         className="flex-1 min-w-0 text-sm sm:text-base bg-transparent border-none outline-none text-[var(--text-primary)] placeholder-[var(--text-secondary)] px-2 py-2"
         disabled={isLoading}
       />
+      {url && (
+        <button
+          type="button"
+          onClick={() => setUrl("")}
+          disabled={isLoading}
+          className="mr-2 p-1.5 rounded-full text-[var(--text-secondary)] hover:text-white bg-white/5 hover:bg-white/20 transition-colors shrink-0"
+          title="Clear link"
+          aria-label="Clear link"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      )}
       <button
         type="submit"
         disabled={isLoading || !url.trim()}

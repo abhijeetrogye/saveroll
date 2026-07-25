@@ -76,6 +76,7 @@ export default function Home() {
         setError(errorData);
       } else {
         const data: MediaInfo = await res.json();
+        setMediaInfo(data);
         // Don't auto-select a format; let the user choose
         setSelectedFormat(null);
         setSelectedFormats([]);
